@@ -1,0 +1,4 @@
+# Qubo uses its own OTP and Subscriber-Key authentication, not Supabase Auth.
+# Login and signed image GETs must reach the handler before a Qubo token exists.
+[functions.qubo-proxy]
+verify_jwt = false

@@ -1,0 +1,26 @@
+api:
+  listen: ":1984"
+  # Required when the Flutter app reads HLS from another origin. Keep this
+  # service on the trusted LAN or put it behind an authenticated reverse proxy.
+  origin: "*"
+
+streams:
+  qubo_doorbell:
+    # The client emits H.264 + AAC as MPEG-TS, with automatic video-only H.264
+    # fallback when camera audio is unavailable. This is
+    # media-only: go2rtc treats an exec with backchannel=1 as send-only and
+    # would otherwise ignore this process's stdout.
+    - exec:sh -c "set -a; . /config/.env; set +a; python3 /config/qubo_p2p_client.py - ${QPORT:-49700} 2>>/config/qubo_err.log"#starttimeout=45
+    # WebRTC browsers need Opus. Keep it as a separate on-demand go2rtc source;
+    # feeding AAC and Opus through one MPEG-TS producer causes go2rtc 1.9.15 to
+    # announce AAC but drop its media packets in RTSP/HLS consumers.
+    - ffmpeg:qubo_doorbell#audio=opus#backchannel=0
+    # go2rtc writes browser PCMA to this separate send-only exec. It forwards
+    # the bytes over a local socket to the already-running P2P media process,
+    # avoiding a second cloud/doorbell session.
+    - exec:sh -c "set -a; . /config/.env; set +a; python3 /config/qubo_p2p_client.py --talk-bridge /tmp/qubo_talkback_${QPORT:-49700}.sock 2>>/config/qubo_err.log"#backchannel=1#audio=alaw/8000
+
+# Optional. Preloading shortens first-frame time but can compete with the
+# viewer because the doorbell serves only one P2P peer. Enable only if needed.
+# preload:
+#   qubo_doorbell: video=h264

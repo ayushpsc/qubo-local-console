@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Self-hosted Qubo console for events, recordings, controls and local live view.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Qubo Local">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Qubo Local Console</title>
+  <link rel="manifest" href="manifest.json">
+  <!-- HLS.js transmuxes the observed MPEG-TS live stream for Chrome/Firefox.
+       Safari uses its native HLS implementation. Keep the version pinned. -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.0/dist/hls.min.js"></script>
+  <script>
+    window.startQuboHls = function(video, source, authorizationHeader) {
+      window.stopQuboHls(video);
+      video.setAttribute('playsinline', '');
+      video.setAttribute('data-qubo-error', '');
+      video.setAttribute('data-qubo-renew-session', 'false');
+      if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls({
+          // This feed is classic HLS v3 with complete MPEG-TS segments, not
+          // LL-HLS parts. Stay close to its live edge so a short camera
+          // session does not drain a large target buffer.
+          lowLatencyMode: false,
+          backBufferLength: 15,
+          maxBufferLength: 12,
+          liveSyncDurationCount: 1,
+          liveMaxLatencyDurationCount: 3,
+          maxLiveSyncPlaybackRate: 1.5,
+          xhrSetup: function(xhr) {
+            if (authorizationHeader) {
+              xhr.setRequestHeader('Authorization', authorizationHeader);
+            }
+          }
+        });
+        video.__quboHls = hls;
+        const renewSession = function(message) {
+          if (video.getAttribute('data-qubo-renew-session') === 'true') return;
+          video.setAttribute('data-qubo-error', message);
+          video.setAttribute('data-qubo-renew-session', 'true');
+          video.dispatchEvent(new Event('error'));
+        };
+        let lastEndSequence = null;
+        let targetDurationMs = 6000;
+        let lastPlaylistAdvanceAt = Date.now();
+        let lastPlaybackAdvanceAt = Date.now();
+        let lastPlaybackTime = 0;
+        let playbackStarted = false;
+        let recoveryStartedAt = 0;
+        const bufferedAhead = function() {
+          for (let index = 0; index < video.buffered.length; index++) {
+            if (video.buffered.start(index) <= video.currentTime + 0.1 &&
+                video.buffered.end(index) >= video.currentTime) {
+              return Math.max(0, video.buffered.end(index) - video.currentTime);
+            }
+          }
+          return 0;
+        };
+        hls.on(Hls.Events.LEVEL_UPDATED, function(_, data) {
+          const details = data && data.details;
+          const endSequence = details && Number(details.endSN);
+          const targetDuration = details && Number(details.targetduration);
+          if (Number.isFinite(targetDuration) && targetDuration > 0) {
+            targetDurationMs = targetDuration * 1000;
+          }
+          if (Number.isFinite(endSequence) && endSequence !== lastEndSequence) {
+            lastEndSequence = endSequence;
+            lastPlaylistAdvanceAt = Date.now();
+          }
+        });
+        // Wowza sometimes keeps returning an unchanged 200 playlist after the
+        // camera stops publishing. HLS.js can continue polling successfully
+        // while the media element consumes its final buffered frame. Detect
+        // actual media progress instead of treating HTTP success as liveness.
+        video.__quboWatchdog = setInterval(function() {
+          const now = Date.now();
+          const currentTime = Number(video.currentTime) || 0;
+          if (Math.abs(currentTime - lastPlaybackTime) > 0.08) {
+            playbackStarted = true;
+            lastPlaybackTime = currentTime;
+            lastPlaybackAdvanceAt = now;
+            recoveryStartedAt = 0;
+          }
+          const ahead = bufferedAhead();
+          const playbackStalled = playbackStarted && !video.paused &&
+            !video.seeking && now - lastPlaybackAdvanceAt >
+              Math.max(4500, targetDurationMs * 0.9);
+          const playlistStagnant = lastEndSequence !== null &&
+            now - lastPlaylistAdvanceAt > Math.max(9000, targetDurationMs * 1.75);
+          video.setAttribute('data-qubo-debug', JSON.stringify({
+            currentTime: Math.round(currentTime * 10) / 10,
+            bufferedAhead: Math.round(ahead * 10) / 10,
+            endSequence: lastEndSequence,
+            playlistIdleSeconds: Math.round((now - lastPlaylistAdvanceAt) / 1000),
+            playbackIdleSeconds: Math.round((now - lastPlaybackAdvanceAt) / 1000)
+          }));
+          if (!playbackStalled) return;
+          if (playlistStagnant && ahead < 0.75) {
+            renewSession('The camera stopped adding video to its live playlist.');
+            return;
+          }
+          if (!recoveryStartedAt) {
+            recoveryStartedAt = now;
+            const liveSync = hls.liveSyncPosition;
+            if (Number.isFinite(liveSync) && liveSync > currentTime + 0.25) {
+              video.currentTime = liveSync;
+            }
+            hls.startLoad(-1);
+            video.play().catch(function() {});
+            return;
+          }
+          if (now - recoveryStartedAt > Math.max(3500, targetDurationMs * 0.75)) {
+            renewSession('Live video stopped advancing despite successful network responses.');
+          }
+        }, 1000);
+        let recoveredMediaError = false;
+        hls.on(Hls.Events.ERROR, function(_, data) {
+          if (data.details === Hls.ErrorDetails.PLAYLIST_UNCHANGED_ERROR) {
+            renewSession('The camera playlist stopped publishing new segments.');
+            return;
+          }
+          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            const liveSync = hls.liveSyncPosition;
+            if (Number.isFinite(liveSync) && liveSync - video.currentTime > 1) {
+              video.currentTime = liveSync;
+            }
+            hls.startLoad();
+            if (!video.paused) video.play().catch(function() {});
+            return;
+          }
+          if (!data.fatal) return;
+          const status = data.response && Number(data.response.code);
+          const endedSession = data.type === Hls.ErrorTypes.NETWORK_ERROR &&
+            data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR && status === 404;
+          if (endedSession) {
+            renewSession('The live server ended this camera session.');
+            return;
+          }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !recoveredMediaError) {
+            recoveredMediaError = true;
+            hls.recoverMediaError();
+            return;
+          }
+          const message = data.details || data.type || 'HLS playback failed';
+          video.setAttribute('data-qubo-error', message);
+          video.setAttribute('data-qubo-renew-session', 'false');
+          video.dispatchEvent(new Event('error'));
+        });
+        hls.on(Hls.Events.FRAG_BUFFERED, function() {
+          recoveredMediaError = false;
+          lastPlaylistAdvanceAt = Math.max(lastPlaylistAdvanceAt, Date.now() - targetDurationMs);
+        });
+        hls.loadSource(source);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = source;
+      } else {
+        video.setAttribute('data-qubo-error', 'This browser cannot play HLS video.');
+        video.dispatchEvent(new Event('error'));
+      }
+    };
+    window.stopQuboHls = function(video) {
+      if (video && video.__quboWatchdog) {
+        clearInterval(video.__quboWatchdog);
+        delete video.__quboWatchdog;
+      }
+      if (video && video.__quboHls) {
+        video.__quboHls.destroy();
+        delete video.__quboHls;
+      }
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
+    };
+  </script>
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

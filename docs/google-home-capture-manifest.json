@@ -1,0 +1,7 @@
+{
+  "activeCapture": null,
+  "deployedSecret": "GOOGLE_HOME_CAPTURE_B64",
+  "containsSecretMaterial": false,
+  "rawCaptureTracked": false,
+  "note": "Each installation must deploy its own fresh Google Home request capture as a Supabase secret. Never commit the request, bearer token, opaque context, or response."
+}

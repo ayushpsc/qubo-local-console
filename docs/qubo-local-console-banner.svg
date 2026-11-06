@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title description">
+  <title id="title">Qubo Local Console</title>
+  <desc id="description">A private home camera console for live view, events, recordings and device control.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071b24"/>
+      <stop offset="0.55" stop-color="#0b3a40"/>
+      <stop offset="1" stop-color="#087f68"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#001015" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="320" rx="28" fill="url(#background)"/>
+  <circle cx="1120" cy="-8" r="175" fill="#72e3bf" opacity="0.08"/>
+  <circle cx="1030" cy="305" r="135" fill="#7ed3ff" opacity="0.08"/>
+  <path d="M0 246C190 188 344 290 535 235s338-35 665 41v44H0z" fill="#ffffff" opacity="0.035"/>
+
+  <g transform="translate(70 65)" filter="url(#shadow)">
+    <rect width="190" height="190" rx="44" fill="url(#glass)" stroke="#ffffff" stroke-opacity="0.24"/>
+    <path d="M47 94 95 52l48 42v54a14 14 0 0 1-14 14H61a14 14 0 0 1-14-14z" fill="none" stroke="#b8ffe8" stroke-width="10" stroke-linejoin="round"/>
+    <rect x="80" y="105" width="58" height="42" rx="13" fill="#b8ffe8"/>
+    <circle cx="109" cy="126" r="10" fill="#087f68"/>
+    <path d="m138 114 25-14v52l-25-14z" fill="#b8ffe8" stroke="#b8ffe8" stroke-linejoin="round"/>
+  </g>
+
+  <g font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" fill="#ffffff">
+    <text x="310" y="112" font-size="24" font-weight="600" letter-spacing="4" fill="#9be8d1">SELF-HOSTED • LOCAL-FIRST</text>
+    <text x="306" y="174" font-size="54" font-weight="760" letter-spacing="-1.5">Qubo Local Console</text>
+    <text x="310" y="218" font-size="22" fill="#d4f5eb">Live view, alerts, recordings and device control—under your control.</text>
+  </g>
+
+  <g transform="translate(310 249)" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="15" font-weight="600">
+    <g><rect width="112" height="36" rx="18" fill="#ffffff" opacity="0.13"/><text x="56" y="23" text-anchor="middle" fill="#eafff9">LIVE VIEW</text></g>
+    <g transform="translate(126)"><rect width="106" height="36" rx="18" fill="#ffffff" opacity="0.13"/><text x="53" y="23" text-anchor="middle" fill="#eafff9">EVENTS</text></g>
+    <g transform="translate(246)"><rect width="140" height="36" rx="18" fill="#ffffff" opacity="0.13"/><text x="70" y="23" text-anchor="middle" fill="#eafff9">RECORDINGS</text></g>
+    <g transform="translate(400)"><rect width="142" height="36" rx="18" fill="#ffffff" opacity="0.13"/><text x="71" y="23" text-anchor="middle" fill="#eafff9">TALKBACK</text></g>
+  </g>
+</svg>

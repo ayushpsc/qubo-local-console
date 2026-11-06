@@ -1,0 +1,33 @@
+services:
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: qubo-go2rtc
+    restart: always
+    # Host networking ensures the advertised UDP address reaches the client
+    # without Docker rewriting the doorbell's peer-to-peer packets.
+    network_mode: host
+    environment:
+      QDEVICE: ${QDEVICE}
+      QUNIT: ${QUNIT}
+      QMOB: ${QMOB}
+      QADVERT: ${QADVERT}
+      QPORT: ${QPORT:-49700}
+      QQUALITY: ${QQUALITY:-high}
+      QVIDEOFPS: ${QVIDEOFPS:-10}
+      QDUR: ${QDUR:-86400}
+      QMEDIATIMEOUT: ${QMEDIATIMEOUT:-30}
+      QSTALLTIMEOUT: ${QSTALLTIMEOUT:-120}
+      QAUDIO: ${QAUDIO:-true}
+      QAUDIOWAIT: ${QAUDIOWAIT:-8}
+      QAUDIOGAINDB: ${QAUDIOGAINDB:-20}
+      QTALK: ${QTALK:-false}
+      QTALKGAINDB: ${QTALKGAINDB:-12}
+      QFFMPEG: ${QFFMPEG:-ffmpeg}
+      QSTORE: /ha-storage/core.config_entries
+      QLIBS: /config/_libs
+    volumes:
+      - ./:/config
+      # Mount the directory, not the individual file. Home Assistant replaces
+      # storage files atomically; a file bind mount remains pinned to the old
+      # inode and never sees refreshed credentials.
+      - ${HA_CONFIG_DIR}/.storage:/ha-storage:ro
