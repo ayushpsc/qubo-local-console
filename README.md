@@ -624,3 +624,8 @@ not log in, send device commands, contact a camera, or replay captured traffic.
 
 For route-by-route evidence and assumptions, read
 [`docs/api-inventory.md`](docs/api-inventory.md).
+
+Credits:
+https://github.com/sathishj3257/ha-qubo-doorbell
+https://github.com/tanishqmanuja/ha-qubo
+https://github.com/selvakk2k/qubopy
